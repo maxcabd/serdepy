@@ -7,10 +7,10 @@ class CustomJSONEncoder(json.JSONEncoder):
 	"""
 	Custom JSON encoder that converts objects to dicts
 	"""
-	def default(self, o):
-			if hasattr(o, 'to_dict'): # Usually most of the objects will have a to_dict method but we want to be sure
-					return o.to_dict()
-			return super().default(o)
+	def default(self, obj: object):
+		if hasattr(obj, 'to_dict'): # Usually most of the objects will have a to_dict method but we want to be sure
+				return obj.to_dict()
+		return super().default(obj)
 
 
 class CustomJSONDecoder(json.JSONDecoder):
@@ -18,17 +18,19 @@ class CustomJSONDecoder(json.JSONDecoder):
 	Custom JSON decoder that converts dicts to objects.
 	"""
 	def __init__(self, *args, **kwargs):
-			super().__init__(object_hook=self.from_dict, *args, **kwargs)
+		super().__init__(object_hook=self.from_dict, *args, **kwargs)
 
-	def from_dict(self, d: dict):
-			for k, v in d.items():
-					if isinstance(v, dict):
-							d[k] = self.from_dict(v)
-					elif isinstance(v, list):
-							for i, e in enumerate(v):
-									if isinstance(e, dict):
-											v[i] = self.from_dict(e)
-			return d
+	def from_dict(self, dictionary: dict) -> dict:
+		for key, value in dictionary.items():
+			if isinstance(value, dict):
+				dictionary[key] = self.from_dict(value)
+
+			elif isinstance(value, list):
+				for i, e in enumerate(value):
+					if isinstance(e, dict):
+						value[i] = self.from_dict(e)
+
+		return dictionary
 
 
 def serde(cls: T) -> T:
@@ -39,6 +41,7 @@ def serde(cls: T) -> T:
 	setattr(cls, 'from_dict', classmethod(from_dict))
 	setattr(cls, 'serialize', serialize)
 	setattr(cls, 'deserialize', classmethod(deserialize))
+
 	return cls
 
 
@@ -53,11 +56,11 @@ def from_dict(cls, dictionary: dict) -> object:
     """
     Return an instance of the class from a dict while checking types to ensure data validation.
     """
-    obj = cls.__new__(cls)
+    obj: object = cls.__new__(cls)
 
     for field in fields(cls):
-        field_name = field.name
-        field_type = field.type
+        field_name: str = field.name
+        field_type: str = field.type
 
         if field_name in dictionary:
             value = dictionary[field_name]
@@ -65,14 +68,15 @@ def from_dict(cls, dictionary: dict) -> object:
             if getattr(field_type, '__origin__', None) is list:
                 inner_type = field_type.__args__[0]
                 value = [inner_type.from_dict(x) if isinstance(x, dict) else x for x in value]
+		
                 if not all(isinstance(v, inner_type) for v in value):
                     raise TypeError(f"Invalid type for {field_name}: {type(value)}")
 
             elif is_dataclass(field_type):
-                value = field_type.from_dict(value)
+                value = field_type.from_dict(value) 
 
             elif not isinstance(value, field_type):
-                raise TypeError(f"Incorrect type for {field_name}: {str(type(value).__name__)}, expected {str(field_type.__name__)}")
+                raise TypeError(f"Incorrect type for {field_name}: {str(type(value).__name__)}, expected {str(field_type.__name__)} instead")
             
             setattr(obj, field_name, value)
 
@@ -90,7 +94,7 @@ def deserialize(cls, json_str: str) -> object:
 	"""
 	Return an instance of the class from a JSON string.
 	"""
-	dictionary = json.loads(json_str)
+	dictionary: dict = json.loads(json_str)
 
 	if not isinstance(dictionary, dict): # We want to ensure that the JSON string is a JSON object and not just a dict
 			raise TypeError(f"{cls.__name__}.deserialize(): expected a JSON object, but got {type(dictionary).__name__}")
