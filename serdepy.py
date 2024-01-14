@@ -88,12 +88,18 @@ def serialize(self, indent: int = 2) -> str:
     return json.dumps(self.to_dict(), cls=Serializer, indent=indent)
 
 
-def deserialize(cls, json_str: str) -> object:
+def deserialize(cls, data: str) -> object:
     """
     Return an instance of the data class from a JSON string, ensuring it represents a JSON object.
     """
-    dictionary: dict = json.loads(json_str)
+    # If the data is a dict then convert it to a string
+    if isinstance(data, dict):
+        data: str = json.dumps(data)
+
+
+    dictionary: dict = json.loads(data)
 
     if not isinstance(dictionary, dict):
         raise TypeError(f"{cls.__name__}.deserialize(): expected a JSON object, but got {type(dictionary).__name__}")
+    
     return cls.from_dict(dictionary)
