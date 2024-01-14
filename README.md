@@ -28,7 +28,7 @@ p = Person("Tom", 30, [Car("Porshe", 2019), Car("BMW", 2020)])
 print(p.serialize()) # This would yield {"name": "Tom", "age": 30, "cars": [{"name": "Porshe", "year": 2019}, {"name": "BMW", "year": 2020}]}
 ```
 
-We can also convert a JSON input (a Python dictionary is also valid) to an instance of our Person data class:
+We can also de-serialize a JSON input (a Python dictionary is also valid) to an instance of our Person data class:
 ```py
 # Some JSON input as a str, could be from a file or a network request
 data = """{
