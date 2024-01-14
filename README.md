@@ -5,6 +5,8 @@ Serialization and deserialization framework for Python data classes.
 # Usage
 ```py
 from serdepy import serde
+from dataclasses import dataclass
+from typing import List
 ```
 
 Here's an example of how you serialize a Python data structure that has a nested field:
