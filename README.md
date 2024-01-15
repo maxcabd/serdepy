@@ -52,14 +52,14 @@ print(p.name) # Tom
 
 Validation is done automatically to ensure that mismatched field types are handled during compile time:
 ```py
-# This would throw TypeError: Incorrect type for age: str, expected int instead
+
 data = """{
     "name": "Tom",
     "age": "30",
     ...
 }"""
 
-p = Person.deserialize(data) 
+p = Person.deserialize(data) # This would throw TypeError: Incorrect type for age: str, expected int instead
 ```
 
 
