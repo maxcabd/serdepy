@@ -1,4 +1,4 @@
-from typing import T
+from typing import T, Type
 from dataclasses import fields, is_dataclass
 
 import json
@@ -6,7 +6,7 @@ import json
 
 class Serializer(json.JSONEncoder):
     """
-    Serialize data class objects into a dictionary.
+    Serialize objects into a dictionary.
     """
     def default(self, obj: object):
         if hasattr(obj, 'to_dict'):
@@ -16,12 +16,12 @@ class Serializer(json.JSONEncoder):
 
 class Deserializer(json.JSONDecoder):
     """
-    Deserialize dictionary objects back to a data class instance.
+    Deserialize dictionary objects back to an object.
     """
     def __init__(self, *args, **kwargs):
         super().__init__(object_hook=self.from_dict, *args, **kwargs)
 
-    def from_dict(self, dictionary: dict) -> T:
+    def from_dict(self, dictionary: dict) -> object:
         for key, value in dictionary.items():
             if isinstance(value, dict):
                 dictionary[key] = self.from_dict(value)
@@ -31,9 +31,10 @@ class Deserializer(json.JSONDecoder):
                         value[i] = self.from_dict(e)
         return dictionary
 
-def serde(cls: T) -> T:
+
+def serde(cls: Type[T]) -> Type[T]:
     """
-    Decorator to add serialization/deserialization methods to a dataclass.
+    Decorator to add serialization/deserialization methods to a class.
     """
     setattr(cls, 'to_dict', to_dict)
     setattr(cls, 'from_dict', classmethod(from_dict))
@@ -43,63 +44,47 @@ def serde(cls: T) -> T:
     return cls
 
 
-def to_dict(self) -> dict:
+def to_dict(obj: object) -> dict:
     """
-    Return a dictionary representation of the data class object.
+    Return a dictionary representation of the object.
     """
-    return {f.name: getattr(self, f.name) for f in fields(self)}
+    if hasattr(obj, '__annotations__'):
+        return {f: getattr(obj, f) for f in obj.__annotations__}
+    return {}
 
 
-def from_dict(cls, dictionary: dict) -> T:
+def from_dict(cls: Type[T], dictionary: dict) -> T:
     """
-    Return an instance of the data class from a dictionary while also performing type validation.
+    Return an instance of the class from a dictionary while also performing type validation.
     """
     obj: T = cls.__new__(cls)
 
-    for field in fields(cls):
-        field_name: str = field.name
-        field_type: T = field.type
-
+    for field_name, field_type in obj.__annotations__.items():
         if field_name in dictionary:
             value = dictionary[field_name]
 
-            if getattr(field_type, '__origin__', None) is list:
-                inner_type = field_type.__args__[0]
-                value = [inner_type.from_dict(x) if isinstance(x, dict) else x for x in value]
-
-                if not all(isinstance(v, inner_type) for v in value):
-                    raise TypeError(f"Invalid type for {field_name}: {type(value)}")
-
-            elif is_dataclass(field_type):
+            if hasattr(field_type, 'from_dict'):
                 value = field_type.from_dict(value)
-
-            elif not isinstance(value, field_type):
-                raise TypeError(f"Incorrect type for {field_name}: {str(type(value).__name__)}, expected {str(field_type.__name__)} instead")
 
             setattr(obj, field_name, value)
 
     return obj
 
 
-def serialize(self, indent: int = 2) -> str:
+def serialize(obj: object, indent: int = 2) -> str:
     """
-    Return a JSON representation of the data class object using the Serializer.
+    Return a JSON representation of the object using the Serializer.
     """
-    return json.dumps(self.to_dict(), cls=Serializer, indent=indent)
+    return json.dumps(obj.to_dict(), cls=Serializer, indent=indent)
 
 
-def deserialize(cls, data: str) -> object:
+def deserialize(cls: Type[T], data: str) -> T:
     """
-    Return an instance of the data class from a JSON string, ensuring it represents a JSON object.
+    Return an instance of the class from a JSON string, ensuring it represents a JSON object.
     """
-    # If the data is a dict then convert it to a string
-    if isinstance(data, dict):
-        data: str = json.dumps(data)
-
-
     dictionary: dict = json.loads(data)
 
     if not isinstance(dictionary, dict):
         raise TypeError(f"{cls.__name__}.deserialize(): expected a JSON object, but got {type(dictionary).__name__}")
-    
-    return cls.from_dict(dictionary)
+
+    return from_dict(cls, dictionary)
