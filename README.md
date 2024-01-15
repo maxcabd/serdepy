@@ -58,6 +58,8 @@ data = """{
     "age": "30",
     ...
 }"""
+
+p = Person.deserialize(data) 
 ```
 
 
