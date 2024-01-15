@@ -52,7 +52,6 @@ def to_dict(obj: object) -> dict:
         return {f: getattr(obj, f) for f in obj.__annotations__}
     return {}
 
-
 def from_dict(cls: Type[T], dictionary: dict) -> T:
     """
     Return an instance of the class from a dictionary while also performing type validation.
@@ -61,11 +60,17 @@ def from_dict(cls: Type[T], dictionary: dict) -> T:
 
     for field_name, field_type in obj.__annotations__.items():
         if field_name in dictionary:
-            value = dictionary[field_name]
+            value = dictionary[field_name]  # The actual value from the dictionary
 
-            if hasattr(field_type, 'from_dict'):
+            if isinstance(value, list) or isinstance(field_type, _GenericAlias):
+                inner_type = field_type.__args__[0]
+                # Recursively call from_dict for each element in the list
+                value = [inner_type.from_dict(v) if isinstance(v, dict) else v for v in value]
+            elif isinstance(value, dict):
+                # Recursively call from_dict for nested structures
                 value = field_type.from_dict(value)
 
+            # Set the value for each of the fields from the dictionary
             setattr(obj, field_name, value)
 
     return obj
